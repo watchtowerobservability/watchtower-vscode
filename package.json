@@ -1,0 +1,45 @@
+{
+  "name": "watchtower-vscode",
+  "displayName": "Watchtower",
+  "publisher": "watchtowerobservability",
+  "version": "0.1.0",
+  "repository": { "type": "git", "url": "git+https://github.com/watchtowerobservability/watchtower-vscode.git" },
+  "description": "Watchtower issues, traces, replays and hot functions inside VS Code (plain JavaScript)",
+  "license": "Apache-2.0",
+  "engines": { "vscode": "^1.85.0", "node": ">=18" },
+  "categories": ["Debuggers", "Other"],
+  "main": "./src/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      { "command": "watchtower.signIn", "title": "Watchtower: Sign in with API token" },
+      { "command": "watchtower.signOut", "title": "Watchtower: Sign out" },
+      { "command": "watchtower.refresh", "title": "Watchtower: Refresh issues and profiles" },
+      { "command": "watchtower.openIssue", "title": "Watchtower: Open issue" },
+      { "command": "watchtower.openTrace", "title": "Watchtower: Open trace" },
+      { "command": "watchtower.openReplay", "title": "Watchtower: Open replay" }
+    ],
+    "configuration": {
+      "title": "Watchtower",
+      "properties": {
+        "watchtower.apiUrl": { "type": "string", "default": "", "description": "Watchtower API base URL." },
+        "watchtower.webUrl": { "type": "string", "default": "", "description": "Watchtower web app URL for links (defaults to the API URL)." },
+        "watchtower.projectId": { "type": "string", "default": "", "description": "Project id." },
+        "watchtower.service": { "type": "string", "default": "", "description": "Service whose profiles drive hot-function CodeLens. Empty disables them." },
+        "watchtower.maxIssues": { "type": "number", "default": 30, "description": "Unresolved issues to scan for stack frames." },
+        "watchtower.hotThresholdPct": { "type": "number", "default": 5, "description": "Show a CodeLens for functions with at least this share of CPU." }
+      }
+    }
+  },
+  "files": ["src", "README.md", "LICENSE", "CHANGELOG.md"],
+  "scripts": {
+    "test": "node --test test/unit.test.js",
+    "test:vscode": "node test/runTest.js",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.1",
+    "mocha": "^10.8.2"
+  }
+}
