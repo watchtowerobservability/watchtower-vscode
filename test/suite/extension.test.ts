@@ -1,29 +1,33 @@
-'use strict';
-const assert = require('node:assert');
-const http = require('node:http');
-const path = require('node:path');
-const vscode = require('vscode');
+import assert from 'node:assert';
+import * as http from 'node:http';
+import type { AddressInfo } from 'node:net';
+import * as path from 'node:path';
+import * as vscode from 'vscode';
 
-const demo = path.resolve(__dirname, '..', '..', 'examples', 'demo');
+type Api = { setToken(t: string): Thenable<void>; refresh(): Promise<void> };
+
+// Compiled to dist/test/suite: the package root is three levels up.
+const demo = path.resolve(__dirname, '..', '..', '..', 'examples', 'demo');
 
 suite('Watchtower extension', () => {
-  let server;
-  let seenAuth;
+  let server: http.Server;
+  let seenAuth: string | undefined;
 
   suiteSetup(async () => {
     server = http.createServer((req, res) => {
       seenAuth = req.headers.authorization;
       res.setHeader('content-type', 'application/json');
-      if (req.url.startsWith('/v1/projects/p1/issues/i1/events')) {
+      const url = req.url ?? '';
+      if (url.startsWith('/v1/projects/p1/issues/i1/events')) {
         res.end(JSON.stringify({ data: [{
           trace_id: 't1',
           exception: { values: [{ stacktrace: { frames: [
             { filename: '/ci/build/src/cart.js', lineno: 2, function: 'total' },
           ] } }] },
         }] }));
-      } else if (req.url.startsWith('/v1/projects/p1/issues')) {
+      } else if (url.startsWith('/v1/projects/p1/issues')) {
         res.end(JSON.stringify({ data: [{ id: 'i1', title: 'TypeError in total', times_seen: 7 }] }));
-      } else if (req.url.startsWith('/v1/projects/p1/profiles/table')) {
+      } else if (url.startsWith('/v1/projects/p1/profiles/table')) {
         res.end(JSON.stringify({ data: [
           { name: 'total', file: 'src/cart.js', line: 1, self: 50, total: 80 },
           { name: 'main', file: 'src/main.js', self: 1, total: 100 },
@@ -33,9 +37,9 @@ suite('Watchtower extension', () => {
         res.end('{}');
       }
     });
-    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
     const c = vscode.workspace.getConfiguration('watchtower');
-    await c.update('apiUrl', `http://127.0.0.1:${server.address().port}`, vscode.ConfigurationTarget.Global);
+    await c.update('apiUrl', `http://127.0.0.1:${(server.address() as AddressInfo).port}`, vscode.ConfigurationTarget.Global);
     await c.update('projectId', 'p1', vscode.ConfigurationTarget.Global);
     await c.update('service', 'cart', vscode.ConfigurationTarget.Global);
   });
@@ -44,6 +48,7 @@ suite('Watchtower extension', () => {
 
   test('registers its commands', async () => {
     const ext = vscode.extensions.getExtension('watchtowerobservability.watchtower-vscode');
+    assert.ok(ext);
     await ext.activate();
     const cmds = await vscode.commands.getCommands(true);
     for (const c of ['signIn', 'signOut', 'refresh', 'openIssue', 'openTrace', 'openReplay']) {
@@ -52,7 +57,7 @@ suite('Watchtower extension', () => {
   });
 
   test('shows the issue as a diagnostic on its stack frame line and a hot-function lens', async () => {
-    const api = await vscode.extensions.getExtension('watchtowerobservability.watchtower-vscode').activate();
+    const api = await vscode.extensions.getExtension<Api>('watchtowerobservability.watchtower-vscode')!.activate();
     await api.setToken('wta_test');
     const doc = await vscode.workspace.openTextDocument(path.join(demo, 'src', 'cart.js'));
     await vscode.window.showTextDocument(doc);
@@ -60,12 +65,12 @@ suite('Watchtower extension', () => {
 
     const ds = vscode.languages.getDiagnostics(doc.uri).filter((d) => d.source === 'Watchtower');
     assert.strictEqual(ds.length, 1);
-    assert.strictEqual(ds[0].range.start.line, 1);
-    assert.match(ds[0].message, /TypeError in total/);
+    assert.strictEqual(ds[0]?.range.start.line, 1);
+    assert.match(ds[0]?.message ?? '', /TypeError in total/);
     assert.strictEqual(seenAuth, 'Bearer wta_test');
 
-    const lenses = await vscode.commands.executeCommand('vscode.executeCodeLensProvider', doc.uri);
-    const titles = lenses.map((l) => l.command.title);
+    const lenses = await vscode.commands.executeCommand<vscode.CodeLens[]>('vscode.executeCodeLensProvider', doc.uri);
+    const titles = lenses.map((l) => l.command?.title ?? '');
     assert.ok(titles.some((t) => t.includes('TypeError in total')), titles.join('|'));
     assert.ok(titles.includes('Trace'));
     assert.ok(titles.some((t) => t.includes('50.0% of CPU')), titles.join('|'));

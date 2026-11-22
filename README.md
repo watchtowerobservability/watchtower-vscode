@@ -4,6 +4,7 @@ Production issues, traces, replays and hot functions next to the code that cause
 
 - Issues whose stack has a frame in the open file are flagged on that exact line (Problems panel and CodeLens).
 - CodeLens actions open the issue, its trace or its replay in Watchtower.
+- Logger calls whose records carry the SDK code location (`code.filepath`, `code.lineno`) get a CodeLens and hover with volume and the latest lines, plus a Logs view in the Explorer; links open the Logs explorer.
 - Hot functions from your service's profiles get a CPU-share CodeLens.
 - The API token lives in VS Code SecretStorage; it is never written to settings or logs.
 
